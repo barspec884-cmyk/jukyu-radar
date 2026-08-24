@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>売り出しウォッチ｜Amber Palette</title>
+<title>需給レーダー｜よしよしガッキー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -130,8 +130,8 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">Bar SPEC ／ 開示ウォッチ</div>
-    <h1>売り出し<span class="accent">ウォッチ</span></h1>
+    <div class="eyebrow">よしよしガッキー ／ 開示ウォッチ</div>
+    <h1>需給<span class="accent">レーダー</span></h1>
     <div class="status">
       <span class="live-dot" id="liveDot"><i></i><span id="liveText">停止中</span></span>
       <span>最終更新 <b id="lastUpd">—</b></span>
@@ -188,7 +188,7 @@
     データ元は TDnet 適時開示（yanoshin WEB-API・東証と数分間隔で同期）。ブラウザから直接取得できない場合は、自動で中継サーバー経由に切り替えます。どうしても取れないときはサンプル表示になります。
   </div>
 
-  <footer><span class="brand">Amber Palette — Bar SPEC</span></footer>
+  <footer><span class="brand">よしよしガッキー</span></footer>
 
 </div>
 <div class="toast" id="toast"></div>
@@ -210,8 +210,10 @@
   var TARGET="https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100";
   var SOURCES=[
     {name:"直接", url:TARGET},
-    {name:"中継A", url:"https://api.allorigins.win/raw?url="+encodeURIComponent(TARGET)},
-    {name:"中継B", url:"https://corsproxy.io/?url="+encodeURIComponent(TARGET)}
+    {name:"中継A", url:"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(TARGET)},
+    {name:"中継B", url:"https://api.allorigins.win/raw?url="+encodeURIComponent(TARGET)},
+    {name:"中継C", url:"https://api.allorigins.win/get?url="+encodeURIComponent(TARGET), unwrap:true},
+    {name:"中継D", url:"https://corsproxy.io/?url="+encodeURIComponent(TARGET)}
   ];
 
   // ---- sample data (fallback so the screen is never empty) ----
@@ -265,7 +267,7 @@
     var t = items.length===1
       ? items[0].name+"｜"+items[0].title.slice(0,40)
       : "売り出し関連の開示が "+items.length+" 件";
-    try{ new Notification("売り出しウォッチ", {body:t}); }catch(e){}
+    try{ new Notification("需給レーダー", {body:t}); }catch(e){}
   }
 
   // ---- normalise API response ----
@@ -297,6 +299,7 @@
         .then(function(r){ if(!r.ok) throw 0; return r.text(); })
         .then(function(txt){
           var json=JSON.parse(txt);
+          if(src.unwrap && json && typeof json.contents==="string"){ json=JSON.parse(json.contents); }
           var data=normalise(json);
           if(!data.length) throw 0;
           cb(null, data, src.name);
