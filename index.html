@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>売り出しウォッチ｜Amber Palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090909; --panel:#14110c; --panel-2:#1b160e;
+    --gold:#D8B56A; --amber:#C67A22; --ink:#ece6d8; --muted:#9a9384;
+    --line:rgba(216,181,106,.18); --line-strong:rgba(216,181,106,.34);
+    --hit:rgba(216,181,106,.10); --live:#7fb069; --off:#c25b4e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans JP",sans-serif; line-height:1.6;
+    font-size:15px; -webkit-font-smoothing:antialiased; padding:0 16px 60px;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  header{padding:34px 0 20px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Fraunces",serif;font-style:italic;color:var(--amber);font-size:14px;margin-bottom:8px}
+  h1{font-family:"Fraunces",serif;font-weight:900;font-size:clamp(26px,6vw,38px);line-height:1.1}
+  h1 .accent{color:var(--gold)}
+
+  /* status bar */
+  .status{
+    display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
+    margin-top:16px;font-size:13px;color:var(--muted);
+  }
+  .live-dot{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:var(--ink)}
+  .live-dot i{width:9px;height:9px;border-radius:50%;background:var(--off);display:inline-block;transition:.3s}
+  .live-dot.on i{background:var(--live);box-shadow:0 0 0 0 rgba(127,176,105,.6);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,176,105,.5)}70%{box-shadow:0 0 0 8px rgba(127,176,105,0)}100%{box-shadow:0 0 0 0 rgba(127,176,105,0)}}
+  .status b{color:var(--gold);font-weight:700}
+
+  /* controls */
+  .controls{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin:20px 0;display:grid;gap:14px;
+  }
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}
+  label{font-size:12px;color:var(--muted);letter-spacing:.02em}
+  input[type=text],select{
+    background:#0d0b07;border:1px solid var(--line-strong);color:var(--ink);
+    border-radius:8px;padding:9px 11px;font-family:inherit;font-size:14px;width:100%;
+  }
+  input[type=text]:focus,select:focus{outline:none;border-color:var(--gold)}
+  .btn{
+    border:1px solid var(--line-strong);background:rgba(216,181,106,.06);
+    color:var(--ink);border-radius:8px;padding:9px 15px;font-family:inherit;
+    font-size:14px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:rgba(216,181,106,.14)}
+  .btn.primary{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:700}
+  .btn.primary:hover{background:var(--amber);border-color:var(--amber)}
+  .toggles{display:flex;flex-wrap:wrap;gap:8px}
+  .tg{
+    display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer;user-select:none;
+  }
+  .tg.on{color:var(--gold);border-color:var(--line-strong);background:rgba(216,181,106,.07)}
+  .tg i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .tg.on i{background:var(--gold)}
+
+  /* list */
+  .meta{display:flex;justify-content:space-between;align-items:baseline;margin:6px 2px 12px;color:var(--muted);font-size:13px}
+  .meta .count b{color:var(--gold);font-family:"Fraunces",serif;font-size:17px}
+  .list{display:grid;gap:9px}
+  .item{
+    display:grid;grid-template-columns:auto 1fr;gap:4px 14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:13px 15px;align-items:start;text-decoration:none;color:inherit;transition:.15s;
+  }
+  .item:hover{border-color:var(--line-strong)}
+  .item.hit{background:var(--hit);border-color:var(--line-strong)}
+  .item.fresh{animation:flash 2.5s ease-out}
+  @keyframes flash{0%{background:rgba(216,181,106,.32)}100%{background:var(--hit)}}
+  .item .time{font-family:"Fraunces",serif;color:var(--amber);font-size:14px;white-space:nowrap;padding-top:1px}
+  .item .body{min-width:0}
+  .item .co{font-weight:700;color:var(--gold);font-size:14px}
+  .item .co .code{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
+  .item .title{font-size:14px;color:var(--ink);margin-top:2px;line-height:1.5}
+  .item .badge{
+    display:inline-block;font-size:10.5px;letter-spacing:.06em;color:var(--bg);
+    background:var(--gold);border-radius:4px;padding:1px 7px;margin-top:6px;font-weight:700;
+  }
+  .item .badge.buy{background:var(--live)}
+  .item .arrow{grid-column:2;color:var(--muted);font-size:11px;margin-top:6px}
+
+  /* code panel */
+  .codes{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .codes .head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+  .codes .head .lbl{font-size:12px;color:var(--muted)}
+  .codes .head .lbl b{color:var(--gold);font-family:"Fraunces",serif;font-size:17px;margin:0 3px}
+  .copyall{border:1px solid var(--line-strong);background:rgba(216,181,106,.06);color:var(--ink);border-radius:7px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .copyall:hover{background:rgba(216,181,106,.14)}
+  .chips2{display:flex;flex-wrap:wrap;gap:7px}
+  .codechip{border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:13px;background:rgba(255,255,255,.02);cursor:pointer;color:var(--ink);display:inline-flex;align-items:center;gap:8px;transition:.15s;user-select:none;font-family:inherit}
+  .codechip:hover{border-color:var(--line-strong)}
+  .codechip.hit{border-color:var(--line-strong);background:rgba(216,181,106,.12)}
+  .codechip .num{font-family:"Fraunces",serif;font-weight:600;letter-spacing:.02em;color:var(--gold)}
+  .codechip.hit .num{color:var(--gold)}
+  .codechip:not(.hit) .num{color:var(--ink)}
+  .codechip .nm{color:var(--muted);font-size:11.5px;max-width:7.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .codechip.copied{border-color:var(--live);background:rgba(127,176,105,.16)}
+  .codechip.copied .num{color:var(--live)}
+  .codes .empty{color:var(--muted);font-size:13px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--gold);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .state{text-align:center;padding:44px 20px;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+  .state.err{border-color:rgba(194,91,78,.4);color:#d99}
+  .spin{width:26px;height:26px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 14px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .note{margin-top:22px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;line-height:1.7}
+  .note b{color:var(--amber)}
+  footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
+  footer .brand{font-family:"Fraunces",serif;font-style:italic;color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Bar SPEC ／ 開示ウォッチ</div>
+    <h1>売り出し<span class="accent">ウォッチ</span></h1>
+    <div class="status">
+      <span class="live-dot" id="liveDot"><i></i><span id="liveText">停止中</span></span>
+      <span>最終更新 <b id="lastUpd">—</b></span>
+      <span>次の確認まで <b id="countdown">—</b></span>
+      <span>取得元 <b id="sourceLbl">—</b></span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="row">
+      <div class="field">
+        <label>更新間隔（APIに優しく3分以上を推奨）</label>
+        <select id="interval">
+          <option value="180">3分ごと</option>
+          <option value="300">5分ごと</option>
+          <option value="600">10分ごと</option>
+          <option value="0">手動のみ</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>拾うキーワード（カンマ区切り）</label>
+        <input type="text" id="keywords" value="売出,売り出し,立会外分売,立会外買付">
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="refreshBtn">今すぐ確認</button>
+      <div class="toggles">
+        <span class="tg on" id="tgHitOnly"><i></i>該当のみ表示</span>
+        <span class="tg" id="tgNotify"><i></i>ブラウザ通知</span>
+        <span class="tg" id="tgSound"><i></i>新着音</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta">
+    <span class="count"><b id="cnt">0</b> 件表示中</span>
+    <span id="scanLbl">全<span id="scanCnt">0</span>件から抽出</span>
+  </div>
+
+  <div class="codes" id="codesPanel">
+    <div class="head">
+      <span class="lbl">動いた銘柄コード <b id="codeCnt">0</b>件（タップでコピー）</span>
+      <button class="copyall" id="copyAll">全部コピー</button>
+    </div>
+    <div class="chips2" id="codeChips"><span class="empty">—</span></div>
+  </div>
+
+  <div class="list" id="list">
+    <div class="state" id="state"><div class="spin"></div>読み込み中…</div>
+  </div>
+
+  <div class="note">
+    <b>このページを開いている間だけ</b>動きます。タブを閉じると監視は止まります。「閉じていても通知が飛んでくる」常駐は、サーバー側（GitHub Actions / VPS）の担当です。<br>
+    データ元は TDnet 適時開示（yanoshin WEB-API・東証と数分間隔で同期）。ブラウザから直接取得できない場合は、自動で中継サーバー経由に切り替えます。どうしても取れないときはサンプル表示になります。
+  </div>
+
+  <footer><span class="brand">Amber Palette — Bar SPEC</span></footer>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- state ----
+  var timer=null, cdTimer=null, nextAt=0;
+  var knownHitIds={}, firstLoad=true;
+  var opt={hitOnly:true, notify:false, sound:false};
+  var audioCtx=null;
+
+  var $=function(id){return document.getElementById(id);};
+  var listEl=$("list");
+
+  // ---- data endpoints (tried in order) ----
+  var TARGET="https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100";
+  var SOURCES=[
+    {name:"直接", url:TARGET},
+    {name:"中継A", url:"https://api.allorigins.win/raw?url="+encodeURIComponent(TARGET)},
+    {name:"中継B", url:"https://corsproxy.io/?url="+encodeURIComponent(TARGET)}
+  ];
+
+  // ---- sample data (fallback so the screen is never empty) ----
+  var SAMPLE=[
+    {id:"s1",pubdate:"2026-08-22 15:00:00",code:"79660",name:"リンテック",title:"株式の売出し及び自己株式の処分並びに株式売出しに係る需要状況等の調査（ブックビルディング）に関するお知らせ",url:"https://webapi.yanoshin.jp/tdnet/"},
+    {id:"s2",pubdate:"2026-08-22 15:00:00",code:"XXXXX",name:"サンプル商事",title:"株式の立会外分売実施に関するお知らせ",url:"https://webapi.yanoshin.jp/tdnet/"},
+    {id:"s2b",pubdate:"2026-08-22 15:30:00",code:"XXXXX",name:"サンプル製鋼",title:"自己株式立会外買付取引（ToSTNeT-3）による自己株式の買付けについて",url:"https://webapi.yanoshin.jp/tdnet/"},
+    {id:"s3",pubdate:"2026-08-22 16:30:00",code:"XXXXX",name:"サンプル製作所",title:"2026年8月期 月次売上状況に関するお知らせ",url:"https://webapi.yanoshin.jp/tdnet/"}
+  ];
+
+  // ---- helpers ----
+  function getKeywords(){
+    return $("keywords").value.split(",").map(function(s){return s.trim();}).filter(Boolean);
+  }
+  function isHit(title){
+    var kw=getKeywords();
+    for(var i=0;i<kw.length;i++){ if(title.indexOf(kw[i])>=0) return true; }
+    return false;
+  }
+  function isBuyback(title){
+    // 自己株式立会外買付取引（ToSTNeT-3）などの自社株買いを判定
+    return title.indexOf("立会外買付")>=0 || (title.indexOf("自己株式")>=0 && title.indexOf("買付")>=0);
+  }
+  function fmtTime(pub){
+    // "2026-08-22 15:00:00" -> "08/22 15:00"
+    if(!pub) return "—";
+    var m=pub.replace("T"," ").match(/(\d{4})-(\d{2})-(\d{2})[ ]?(\d{2}):(\d{2})/);
+    if(!m) return pub;
+    return m[2]+"/"+m[3]+" "+m[4]+":"+m[5];
+  }
+  function shortCode(c){
+    if(!c) return "";
+    c=String(c);
+    return c.length===5 ? c.slice(0,4) : c;
+  }
+  function beep(){
+    if(!opt.sound) return;
+    try{
+      if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type="sine"; o.frequency.value=880;
+      g.gain.setValueAtTime(.001,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.25,audioCtx.currentTime+.02);
+      g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.5);
+      o.start(); o.stop(audioCtx.currentTime+.5);
+    }catch(e){}
+  }
+  function pushNotify(items){
+    if(!opt.notify || !("Notification" in window) || Notification.permission!=="granted") return;
+    var t = items.length===1
+      ? items[0].name+"｜"+items[0].title.slice(0,40)
+      : "売り出し関連の開示が "+items.length+" 件";
+    try{ new Notification("売り出しウォッチ", {body:t}); }catch(e){}
+  }
+
+  // ---- normalise API response ----
+  function normalise(json){
+    var items = json && json.items ? json.items : (Array.isArray(json)? json : []);
+    var out=[];
+    for(var i=0;i<items.length;i++){
+      var t=items[i].Tdnet || items[i];
+      if(!t) continue;
+      out.push({
+        id: t.id || (t.company_code+"_"+t.pubdate+"_"+(t.title||"").slice(0,10)),
+        pubdate: t.pubdate || t.pub_date || "",
+        code: t.company_code || t.code || "",
+        name: t.company_name || t.name || "（銘柄名不明）",
+        title: t.title || "",
+        url: t.document_url || t.url || t.url_xbrl || "https://webapi.yanoshin.jp/tdnet/"
+      });
+    }
+    return out;
+  }
+
+  // ---- fetch with fallback ----
+  function fetchData(cb){
+    var i=0;
+    function attempt(){
+      if(i>=SOURCES.length){ cb(null, SAMPLE, "サンプル"); return; }
+      var src=SOURCES[i++];
+      fetch(src.url,{cache:"no-store"})
+        .then(function(r){ if(!r.ok) throw 0; return r.text(); })
+        .then(function(txt){
+          var json=JSON.parse(txt);
+          var data=normalise(json);
+          if(!data.length) throw 0;
+          cb(null, data, src.name);
+        })
+        .catch(function(){ attempt(); });
+    }
+    attempt();
+  }
+
+  // ---- render ----
+  function render(data, sourceName){
+    $("sourceLbl").textContent = sourceName + (sourceName==="サンプル"?"（取得失敗）":"");
+    $("scanCnt").textContent = data.length;
+
+    var withHit = data.map(function(d){ d.hit=isHit(d.title); return d; });
+    var hits = withHit.filter(function(d){return d.hit;});
+
+    // new-arrival detection (only after first successful load, sample excluded)
+    var fresh={};
+    if(sourceName!=="サンプル"){
+      var newOnes=[];
+      hits.forEach(function(h){ if(!knownHitIds[h.id]){ if(!firstLoad){ newOnes.push(h); fresh[h.id]=true; } knownHitIds[h.id]=true; } });
+      if(newOnes.length){ pushNotify(newOnes); beep(); }
+      firstLoad=false;
+    }
+
+    var show = opt.hitOnly ? hits : withHit;
+    $("cnt").textContent = show.length;
+    $("lastUpd").textContent = new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    renderCodes(show);
+
+    if(!show.length){
+      listEl.innerHTML='<div class="state">該当する開示はまだありません。<br>間隔ごとに自動で再確認します。</div>';
+      return;
+    }
+    var html="";
+    show.forEach(function(d){
+      html+='<a class="item'+(d.hit?" hit":"")+(fresh[d.id]?" fresh":"")+'" href="'+d.url+'" target="_blank" rel="noopener">'
+        +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
+        +'<span class="body"><span class="co">'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span></span>'
+        +'<span class="title">'+esc(d.title)+'</span>'
+        +(d.hit?(isBuyback(d.title)?'<span class="badge buy">自社株買い</span>':'<span class="badge">売り出し</span>'):'')
+        +'</span></a>';
+    });
+    listEl.innerHTML=html;
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+  // ---- code panel (unique tickers of moved names) ----
+  var lastCodes=[];
+  function renderCodes(items){
+    var seen={}, arr=[];
+    items.forEach(function(d){
+      var c=shortCode(d.code); if(!c) return;
+      if(!seen[c]){ seen[c]={code:c,name:d.name,hit:!!d.hit}; arr.push(seen[c]); }
+      else if(d.hit){ seen[c].hit=true; }
+    });
+    lastCodes=arr;
+    $("codeCnt").textContent=arr.length;
+    var box=$("codeChips");
+    if(!arr.length){ box.innerHTML='<span class="empty">まだありません</span>'; return; }
+    var html="";
+    arr.forEach(function(o){
+      html+='<button class="codechip'+(o.hit?" hit":"")+'" data-code="'+esc(o.code)+'" title="'+esc(o.name)+'">'
+        +'<span class="num">'+esc(o.code)+'</span>'
+        +'<span class="nm">'+esc(o.name)+'</span></button>';
+    });
+    box.innerHTML=html;
+  }
+  function copyText(t,cb){
+    function fallback(){
+      try{ var ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); cb(true);}catch(e){ cb(false); }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){cb(true);},fallback);
+    } else fallback();
+  }
+  function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove("show");},1600); }
+
+  // ---- refresh cycle ----
+  function refresh(){
+    if(firstLoad) listEl.innerHTML='<div class="state"><div class="spin"></div>読み込み中…</div>';
+    fetchData(function(err,data,src){ render(data, src); });
+  }
+  function scheduleNext(){
+    clearInterval(timer); clearInterval(cdTimer);
+    var sec=parseInt($("interval").value,10);
+    var dot=$("liveDot"), txt=$("liveText");
+    if(!sec){ dot.className="live-dot"; txt.textContent="手動モード"; $("countdown").textContent="—"; return; }
+    dot.className="live-dot on"; txt.textContent="稼働中";
+    nextAt=Date.now()+sec*1000;
+    timer=setInterval(function(){ refresh(); nextAt=Date.now()+sec*1000; }, sec*1000);
+    cdTimer=setInterval(function(){
+      var r=Math.max(0,Math.round((nextAt-Date.now())/1000));
+      var mm=Math.floor(r/60), ss=r%60;
+      $("countdown").textContent = mm+":"+(ss<10?"0":"")+ss;
+    },1000);
+  }
+
+  // ---- wire up ----
+  $("refreshBtn").onclick=function(){ refresh(); if($("interval").value!=="0"){ nextAt=Date.now()+parseInt($("interval").value,10)*1000; } };
+  $("interval").onchange=scheduleNext;
+  $("keywords").onchange=function(){ firstLoad=true; knownHitIds={}; refresh(); };
+
+  $("tgHitOnly").onclick=function(){ opt.hitOnly=!opt.hitOnly; this.classList.toggle("on",opt.hitOnly); refresh(); };
+  $("tgSound").onclick=function(){ opt.sound=!opt.sound; this.classList.toggle("on",opt.sound); if(opt.sound) beep(); };
+  $("tgNotify").onclick=function(){
+    var self=this;
+    if(!("Notification" in window)){ alert("このブラウザは通知に対応していません。"); return; }
+    if(opt.notify){ opt.notify=false; self.classList.remove("on"); return; }
+    Notification.requestPermission().then(function(p){
+      if(p==="granted"){ opt.notify=true; self.classList.add("on"); }
+      else{ alert("通知が許可されませんでした。ブラウザの設定から許可できます。"); }
+    });
+  };
+
+  $("codeChips").addEventListener("click",function(e){
+    var chip=e.target.closest ? e.target.closest(".codechip") : null;
+    if(!chip){ var n=e.target; while(n&&n!==this){ if(n.className&&n.className.indexOf("codechip")>=0){chip=n;break;} n=n.parentNode; } }
+    if(!chip) return;
+    var c=chip.getAttribute("data-code");
+    copyText(c,function(ok){
+      if(ok){ chip.classList.add("copied"); toast(c+" をコピー"); setTimeout(function(){chip.classList.remove("copied");},900); }
+      else toast("コピーできませんでした");
+    });
+  });
+  $("copyAll").onclick=function(){
+    if(!lastCodes.length){ toast("コードがありません"); return; }
+    var s=lastCodes.map(function(o){return o.code;}).join(",");
+    copyText(s,function(ok){ toast(ok? lastCodes.length+"件のコードをコピー" : "コピーできませんでした"); });
+  };
+
+  // ---- go ----
+  refresh();
+  scheduleNext();
+})();
+</script>
+</body>
+</html>
