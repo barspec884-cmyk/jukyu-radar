@@ -209,6 +209,7 @@
   // ---- data endpoints (tried in order) ----
   var TARGET="https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100";
   var SOURCES=[
+    {name:"サーバー", url:"/api/tdnet"},
     {name:"直接", url:TARGET},
     {name:"中継A", url:"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(TARGET)},
     {name:"中継B", url:"https://api.allorigins.win/raw?url="+encodeURIComponent(TARGET)},
