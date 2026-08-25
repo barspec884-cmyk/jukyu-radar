@@ -207,7 +207,7 @@
         <div class="field"><label>開示日</label><input type="date" id="mDate"></div>
       </div>
       <div class="row">
-        <div class="field"><label>リンク（任意・空でOK）</label><input type="text" id="mUrl" placeholder="https://…"></div>
+        <div class="field"><label>リンク（任意・空ならコードから開示一覧へ自動リンク）</label><input type="text" id="mUrl" placeholder="空でOK（PDF直リンクを入れたい時だけ貼る）"></div>
       </div>
       <div class="row">
         <button class="btn primary" id="mAdd" type="button">この開示を追加</button>
@@ -610,6 +610,10 @@
     var url=($("mUrl").value||"").trim();
     var msg=$("mMsg");
     if(!code && !name){ msg.style.color="#d99"; msg.textContent="コードか会社名を入れてください"; return; }
+    // リンク空欄なら、コードから「その会社の適時開示ページ」を自動で作る
+    var autoUrl = code
+      ? "https://finance.yahoo.co.jp/quote/"+encodeURIComponent(code)+".T/disclosure"
+      : "https://webapi.yanoshin.jp/tdnet/";
     var label = kind==="buy" ? "自己株式立会外買付取引（ToSTNeT-3）"
               : kind==="bunbai" ? "株式の立会外分売"
               : "株式の売出し";
@@ -618,7 +622,7 @@
       pubdate:date+" 16:00:00",
       code:code, name:(name||"（銘柄名未入力）"),
       title:label+"（手動追加）",
-      url:url||"https://webapi.yanoshin.jp/tdnet/",
+      url:url||autoUrl,
       kind:kind, savedAt:Date.now(), manual:true
     };
     var exists=false; pins.forEach(function(p){ if(p.id===pin.id) exists=true; });
