@@ -57,11 +57,14 @@
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
   .field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}
   label{font-size:12px;color:var(--muted);letter-spacing:.02em}
-  input[type=text],select{
+  input[type=text],input[type=date],select{
     background:#0d0b07;border:1px solid var(--line-strong);color:var(--ink);
     border-radius:8px;padding:9px 11px;font-family:inherit;font-size:14px;width:100%;
   }
-  input[type=text]:focus,select:focus{outline:none;border-color:var(--gold)}
+  input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--gold)}
+  .manual{margin:14px 0}
+  .manual-form{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel)}
+  .manual-msg{color:var(--live);font-size:13px;margin-left:4px}
   .btn{
     border:1px solid var(--line-strong);background:rgba(216,181,106,.06);
     color:var(--ink);border-radius:8px;padding:9px 15px;font-family:inherit;
@@ -182,6 +185,33 @@
         <span class="tg" id="tgNotify"><i></i>ブラウザ通知</span>
         <span class="tg" id="tgSound"><i></i>新着音</span>
         <span class="tg" id="tgHideEnded"><i></i>終了を隠す</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="manual" id="manualPanel">
+    <button class="btn" id="manualToggle" type="button">＋ 手動で追加（レーダーが取り逃した開示を登録）</button>
+    <div class="manual-form" id="manualForm" style="display:none">
+      <div class="row">
+        <div class="field"><label>銘柄コード</label><input type="text" id="mCode" placeholder="9706" inputmode="numeric"></div>
+        <div class="field"><label>会社名</label><input type="text" id="mName" placeholder="日本空港ビル"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>種類</label>
+          <select id="mKind">
+            <option value="kobo">公募売出（長い・約2週間残す）</option>
+            <option value="bunbai">立会外分売（短い・翌営業日で終了）</option>
+            <option value="buy">自社株買い（短い・翌営業日で終了）</option>
+          </select>
+        </div>
+        <div class="field"><label>開示日</label><input type="date" id="mDate"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>リンク（任意・空でOK）</label><input type="text" id="mUrl" placeholder="https://…"></div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="mAdd" type="button">この開示を追加</button>
+        <span class="manual-msg" id="mMsg"></span>
       </div>
     </div>
   </div>
@@ -343,7 +373,7 @@
   function endsAt(p){
     // 「終了めやす」を種類別に。祝日は考慮しない簡易版。
     var d=parsePub(p.pubdate) || new Date(p.savedAt||Date.now());
-    if(kindOf(p.title)==="kobo"){
+    if((p.kind||kindOf(p.title))==="kobo"){
       // 公募売出し＝値決め〜受渡で1〜2週間。多めに14日後の朝9:00まで「進行中」扱い。
       var k=new Date(d.getFullYear(), d.getMonth(), d.getDate()+14, 9, 0, 0);
       return k.getTime();
@@ -435,7 +465,7 @@
           title:d.title,url:d.url,hit:true,kind:kindOf(d.title),ended:false}; });
       }else{
         show = pins.map(function(p){ return {id:p.id,pubdate:p.pubdate,code:p.code,name:p.name,
-          title:p.title,url:p.url,hit:true,kind:kindOf(p.title),ended:isEnded(p)}; });
+          title:p.title,url:p.url,hit:true,kind:(p.kind||kindOf(p.title)),ended:isEnded(p)}; });
         if(opt.hideEnded) show=show.filter(function(d){ return !d.ended; });
         show.sort(function(a,b){
           if(a.ended!==b.ended) return a.ended?1:-1;             // 監視中を上に
@@ -562,6 +592,45 @@
   });
 
   $("tgHideEnded").onclick=function(){ opt.hideEnded=!opt.hideEnded; this.classList.toggle("on",opt.hideEnded); render(lastData, lastSource); };
+
+  // 手動追加
+  function pad2(n){ return (n<10?"0":"")+n; }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+  $("manualToggle").onclick=function(){
+    var f=$("manualForm");
+    var open = f.style.display==="none";
+    f.style.display = open?"block":"none";
+    if(open && !$("mDate").value){ $("mDate").value=todayStr(); }
+  };
+  $("mAdd").onclick=function(){
+    var code=($("mCode").value||"").trim();
+    var name=($("mName").value||"").trim();
+    var kind=$("mKind").value;
+    var date=($("mDate").value||"").trim() || todayStr();
+    var url=($("mUrl").value||"").trim();
+    var msg=$("mMsg");
+    if(!code && !name){ msg.style.color="#d99"; msg.textContent="コードか会社名を入れてください"; return; }
+    var label = kind==="buy" ? "自己株式立会外買付取引（ToSTNeT-3）"
+              : kind==="bunbai" ? "株式の立会外分売"
+              : "株式の売出し";
+    var pin={
+      id:"man_"+code+"_"+date+"_"+kind,
+      pubdate:date+" 16:00:00",
+      code:code, name:(name||"（銘柄名未入力）"),
+      title:label+"（手動追加）",
+      url:url||"https://webapi.yanoshin.jp/tdnet/",
+      kind:kind, savedAt:Date.now(), manual:true
+    };
+    var exists=false; pins.forEach(function(p){ if(p.id===pin.id) exists=true; });
+    if(exists){ msg.style.color="#d99"; msg.textContent="すでに追加済みです"; }
+    else{
+      delete dismissed[pin.id]; saveDismiss();
+      pins.push(pin); savePins();
+      msg.style.color="var(--live)"; msg.textContent="追加しました";
+    }
+    $("mCode").value=""; $("mName").value=""; $("mUrl").value="";
+    render(lastData, lastSource);
+  };
 
   $("codeChips").addEventListener("click",function(e){
     var chip=e.target.closest ? e.target.closest(".codechip") : null;
