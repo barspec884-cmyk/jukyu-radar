@@ -87,6 +87,7 @@
     display:grid;grid-template-columns:auto 1fr;gap:4px 14px;
     background:var(--panel);border:1px solid var(--line);border-radius:10px;
     padding:13px 15px;align-items:start;text-decoration:none;color:inherit;transition:.15s;
+    position:relative;
   }
   .item:hover{border-color:var(--line-strong)}
   .item.hit{background:var(--hit);border-color:var(--line-strong)}
@@ -102,6 +103,7 @@
     background:var(--gold);border-radius:4px;padding:1px 7px;margin-top:6px;font-weight:700;
   }
   .item .badge.buy{background:var(--live)}
+  .item .badge.kobo{background:#5f86b8;color:#fff}
   .item .arrow{grid-column:2;color:var(--muted);font-size:11px;margin-top:6px}
 
   /* code panel */
@@ -134,6 +136,13 @@
   .note b{color:var(--amber)}
   footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
   footer .brand{font-family:"Fraunces",serif;font-style:italic;color:var(--gold)}
+  .item.ended{opacity:.5}
+  .item.ended .co,.item.ended .title{color:var(--muted)}
+  .item .pill{display:inline-block;font-size:10.5px;letter-spacing:.04em;border-radius:4px;padding:1px 7px;margin-top:6px;margin-left:6px;font-weight:700;border:1px solid var(--line-strong)}
+  .item .pill.live{color:var(--live);border-color:var(--live)}
+  .item .pill.end{color:var(--muted)}
+  .item .rm{position:absolute;top:6px;right:8px;color:var(--muted);font-size:16px;line-height:1;padding:2px 7px;border-radius:6px;text-decoration:none;opacity:.55}
+  .item .rm:hover{opacity:1;color:#d99}
 </style>
 </head>
 <body>
@@ -172,13 +181,14 @@
         <span class="tg on" id="tgHitOnly"><i></i>該当のみ表示</span>
         <span class="tg" id="tgNotify"><i></i>ブラウザ通知</span>
         <span class="tg" id="tgSound"><i></i>新着音</span>
+        <span class="tg" id="tgHideEnded"><i></i>終了を隠す</span>
       </div>
     </div>
   </div>
 
   <div class="meta">
-    <span class="count"><b id="cnt">0</b> 件表示中</span>
-    <span id="scanLbl">全<span id="scanCnt">0</span>件から抽出</span>
+    <span class="count"><b id="cnt">0</b> 件（<span id="brk">監視中 0／終了 0</span>）</span>
+    <span id="scanLbl">全<span id="scanCnt">0</span>件から確認</span>
   </div>
 
   <div class="codes" id="codesPanel">
@@ -210,8 +220,16 @@
   // ---- state ----
   var timer=null, cdTimer=null, nextAt=0;
   var knownHitIds={}, firstLoad=true;
-  var opt={hitOnly:true, notify:false, sound:false};
+  var opt={hitOnly:true, notify:false, sound:false, hideEnded:false};
   var audioCtx=null;
+  var lastData=[], lastSource="—";
+
+  // ---- pin store（拾った開示を終了まで貯めておく） ----
+  var PINS_KEY="radar_pins_v1", DISMISS_KEY="radar_dismissed_v1";
+  var KEEP_AFTER_END=3;      // 「終了」になってから何日グレー表示で残すか
+  var DISMISS_KEEP=21;       // 手動削除の記録を保つ日数（公募より長め）
+  var pins=[];               // 貯めた該当開示
+  var dismissed={};          // 手動で消したidの記録（再追加を防ぐ）
 
   var $=function(id){return document.getElementById(id);};
   var listEl=$("list");
@@ -247,6 +265,13 @@
   function isBuyback(title){
     // 自己株式立会外買付取引（ToSTNeT-3）などの自社株買いを判定
     return title.indexOf("立会外買付")>=0 || (title.indexOf("自己株式")>=0 && title.indexOf("買付")>=0);
+  }
+  function kindOf(title){
+    // buy=自社株買い(短) / bunbai=立会外分売(短) / kobo=公募売出し(長)
+    title=title||"";
+    if(isBuyback(title)) return "buy";
+    if(title.indexOf("立会外分売")>=0) return "bunbai";
+    return "kobo"; // 「売出/売り出し」で立会外分売でないもの＝公募オファリング（長い）
   }
   function fmtTime(pub){
     // "2026-08-22 15:00:00" -> "08/22 15:00"
@@ -300,6 +325,65 @@
     return out;
   }
 
+  // ---- pin store helpers ----
+  function loadPins(){
+    try{ pins=JSON.parse(localStorage.getItem(PINS_KEY))||[]; }catch(e){ pins=[]; }
+    if(!Array.isArray(pins)) pins=[];
+    try{ dismissed=JSON.parse(localStorage.getItem(DISMISS_KEY))||{}; }catch(e){ dismissed={}; }
+    if(!dismissed || typeof dismissed!=="object") dismissed={};
+  }
+  function savePins(){ try{ localStorage.setItem(PINS_KEY, JSON.stringify(pins)); }catch(e){} }
+  function saveDismiss(){ try{ localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed)); }catch(e){} }
+  function parsePub(pub){
+    if(!pub) return null;
+    var m=String(pub).replace("T"," ").match(/(\d{4})-(\d{2})-(\d{2})[ ]?(\d{2}):(\d{2})/);
+    if(!m) return null;
+    return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], 0);
+  }
+  function endsAt(p){
+    // 「終了めやす」を種類別に。祝日は考慮しない簡易版。
+    var d=parsePub(p.pubdate) || new Date(p.savedAt||Date.now());
+    if(kindOf(p.title)==="kobo"){
+      // 公募売出し＝値決め〜受渡で1〜2週間。多めに14日後の朝9:00まで「進行中」扱い。
+      var k=new Date(d.getFullYear(), d.getMonth(), d.getDate()+14, 9, 0, 0);
+      return k.getTime();
+    }
+    // 立会外分売・自社株買い＝翌営業日 朝9:00（土日はスキップ）
+    var e=new Date(d.getFullYear(), d.getMonth(), d.getDate()+1, 9, 0, 0);
+    while(e.getDay()===0 || e.getDay()===6){ e.setDate(e.getDate()+1); }
+    return e.getTime();
+  }
+  function isEnded(p){ return Date.now() >= endsAt(p); }
+  function purgePins(){
+    // 「終了めやし」を過ぎてから KEEP_AFTER_END 日たったら消す（種類別の終了に自動追従）
+    var now=Date.now(), ch=false;
+    pins=pins.filter(function(p){
+      if(now > endsAt(p) + KEEP_AFTER_END*86400000){ ch=true; return false; }
+      return true;
+    });
+    var dcut=now - DISMISS_KEEP*86400000;
+    for(var k in dismissed){ if(dismissed[k]<dcut){ delete dismissed[k]; ch=true; } }
+    if(ch){ savePins(); saveDismiss(); }
+  }
+  function upsertPins(hits){
+    var have={}; pins.forEach(function(p){ have[p.id]=true; });
+    var ch=false;
+    hits.forEach(function(h){
+      if(have[h.id] || dismissed[h.id]) return;
+      pins.push({id:h.id,pubdate:h.pubdate,code:h.code,name:h.name,title:h.title,url:h.url,
+                 kind:kindOf(h.title), savedAt:Date.now()});
+      have[h.id]=true; ch=true;
+    });
+    if(ch) savePins();
+  }
+  function removePin(id){
+    var n=pins.length;
+    pins=pins.filter(function(p){ return p.id!==id; });
+    dismissed[id]=Date.now();
+    if(pins.length!==n){ savePins(); }
+    saveDismiss();
+  }
+
   // ---- fetch with fallback ----
   function fetchData(cb){
     var i=0;
@@ -322,7 +406,8 @@
 
   // ---- render ----
   function render(data, sourceName){
-    $("sourceLbl").textContent = sourceName + (sourceName==="サンプル"?"（取得失敗）":"");
+    data=data||[]; lastData=data; lastSource=sourceName||"—";
+    $("sourceLbl").textContent = (sourceName||"—") + (sourceName==="サンプル"?"（取得失敗）":"");
     $("scanCnt").textContent = data.length;
 
     var withHit = data.map(function(d){ d.hit=isHit(d.title); return d; });
@@ -337,22 +422,61 @@
       firstLoad=false;
     }
 
-    var show = opt.hitOnly ? hits : withHit;
+    // 該当を貯める（サンプルは貯めない）＋古いものを掃除
+    if(sourceName!=="サンプル"){ upsertPins(hits); }
+    purgePins();
+
+    // 表示リストを作る
+    var show;
+    if(opt.hitOnly){
+      if(sourceName==="サンプル" && !pins.length){
+        // 取得失敗かつ貯めが無い時は、従来どおり見本を出す
+        show = hits.map(function(d){ return {id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,
+          title:d.title,url:d.url,hit:true,kind:kindOf(d.title),ended:false}; });
+      }else{
+        show = pins.map(function(p){ return {id:p.id,pubdate:p.pubdate,code:p.code,name:p.name,
+          title:p.title,url:p.url,hit:true,kind:kindOf(p.title),ended:isEnded(p)}; });
+        if(opt.hideEnded) show=show.filter(function(d){ return !d.ended; });
+        show.sort(function(a,b){
+          if(a.ended!==b.ended) return a.ended?1:-1;             // 監視中を上に
+          return (b.pubdate||"").localeCompare(a.pubdate||"");    // 新しい順
+        });
+      }
+    }else{
+      show = withHit;   // 全件ブラウズ（貯めない）
+    }
+
+    var liveN=0, endN=0;
+    show.forEach(function(d){ if(d.ended) endN++; else if(d.hit) liveN++; });
     $("cnt").textContent = show.length;
+    $("brk").textContent = opt.hitOnly ? ("監視中 "+liveN+"／終了 "+endN) : "全件ブラウズ";
     $("lastUpd").textContent = new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
     renderCodes(show);
 
     if(!show.length){
-      listEl.innerHTML='<div class="state">該当する開示はまだありません。<br>間隔ごとに自動で再確認します。</div>';
+      listEl.innerHTML='<div class="state">'+(opt.hitOnly
+        ? 'まだ拾った開示はありません。<br>該当が出たら自動で貯めて、終了まで残します。'
+        : '該当する開示はまだありません。<br>間隔ごとに自動で再確認します。')+'</div>';
       return;
     }
     var html="";
     show.forEach(function(d){
-      html+='<a class="item'+(d.hit?" hit":"")+(fresh[d.id]?" fresh":"")+'" href="'+d.url+'" target="_blank" rel="noopener">'
+      var k=d.kind||kindOf(d.title);
+      var badge = !d.hit ? '' :
+          k==="buy"    ? '<span class="badge buy">自社株買い</span>' :
+          k==="bunbai" ? '<span class="badge">立会外分売</span>' :
+                         '<span class="badge kobo">公募売出</span>';
+      var liveLbl = (k==="kobo") ? "公募中" : "監視中";
+      var pill = opt.hitOnly ? (d.ended
+        ? '<span class="pill end">終了</span>'
+        : '<span class="pill live">'+liveLbl+'</span>') : '';
+      var rm = opt.hitOnly ? '<span class="rm" data-rm="'+esc(d.id)+'" title="この開示を消す">×</span>' : '';
+      html+='<a class="item'+(d.hit?" hit":"")+(d.ended?" ended":"")+(fresh[d.id]?" fresh":"")+'" href="'+d.url+'" target="_blank" rel="noopener">'
+        + rm
         +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
         +'<span class="body"><span class="co">'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span></span>'
         +'<span class="title">'+esc(d.title)+'</span>'
-        +(d.hit?(isBuyback(d.title)?'<span class="badge buy">自社株買い</span>':'<span class="badge">売り出し</span>'):'')
+        + badge + pill
         +'</span></a>';
     });
     listEl.innerHTML=html;
@@ -427,6 +551,18 @@
     });
   };
 
+  // 個別削除（×）
+  listEl.addEventListener("click", function(e){
+    var t=e.target;
+    if(t && t.getAttribute && t.getAttribute("data-rm")!=null){
+      e.preventDefault(); e.stopPropagation();
+      removePin(t.getAttribute("data-rm"));
+      render(lastData, lastSource);
+    }
+  });
+
+  $("tgHideEnded").onclick=function(){ opt.hideEnded=!opt.hideEnded; this.classList.toggle("on",opt.hideEnded); render(lastData, lastSource); };
+
   $("codeChips").addEventListener("click",function(e){
     var chip=e.target.closest ? e.target.closest(".codechip") : null;
     if(!chip){ var n=e.target; while(n&&n!==this){ if(n.className&&n.className.indexOf("codechip")>=0){chip=n;break;} n=n.parentNode; } }
@@ -444,6 +580,7 @@
   };
 
   // ---- go ----
+  loadPins();
   refresh();
   scheduleNext();
 })();
