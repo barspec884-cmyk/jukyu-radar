@@ -98,9 +98,9 @@
   @keyframes flash{0%{background:rgba(216,181,106,.32)}100%{background:var(--hit)}}
   .item .time{font-family:"Fraunces",serif;color:var(--amber);font-size:14px;white-space:nowrap;padding-top:1px}
   .item .body{min-width:0}
-  .item .co{font-weight:700;color:var(--gold);font-size:14px}
+  .item .co{display:block;font-weight:700;color:var(--gold);font-size:14px;padding-right:18px}
   .item .co .code{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
-  .item .title{font-size:14px;color:var(--ink);margin-top:2px;line-height:1.5}
+  .item .title{display:block;font-size:14px;color:var(--ink);margin-top:2px;line-height:1.5}
   .item .badge{
     display:inline-block;font-size:10.5px;letter-spacing:.06em;color:var(--bg);
     background:var(--gold);border-radius:4px;padding:1px 7px;margin-top:6px;font-weight:700;
@@ -146,6 +146,45 @@
   .item .pill.end{color:var(--muted)}
   .item .rm{position:absolute;top:6px;right:8px;color:var(--muted);font-size:16px;line-height:1;padding:2px 7px;border-radius:6px;text-decoration:none;opacity:.55}
   .item .rm:hover{opacity:1;color:#d99}
+
+  /* ── タブ ── */
+  .tabs{display:flex;gap:6px;margin:4px 0 14px;border-bottom:1px solid var(--line)}
+  .tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);
+    font-family:inherit;font-size:14px;font-weight:700;padding:10px 6px 9px;cursor:pointer;margin-bottom:-1px;line-height:1.35}
+  .tab small{display:block;font-weight:400;font-size:11px;opacity:.85}
+  .tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+  .pane{display:none}
+  .pane.on{display:block}
+  .sub{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:grid;gap:12px}
+  .sub .lbl{font-size:12px;color:var(--muted);margin-right:4px}
+
+  /* ── 材料レーダー ── */
+  .rk{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;border-radius:5px;
+    font-family:"Fraunces",serif;font-weight:900;font-size:13px;margin-right:6px;vertical-align:1px}
+  .rk.S{background:#e0675a;color:#fff}
+  .rk.A{background:var(--gold);color:var(--bg)}
+  .rk.B{background:#6d6656;color:#fff}
+  .rk.C{background:#2b261d;color:var(--muted);border:1px solid var(--line-strong)}
+  .tg.rkS.on{color:#f08a7e;border-color:rgba(224,103,90,.6);background:rgba(224,103,90,.10)}
+  .tg.rkS.on i{background:#e0675a}
+  .dir{display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;margin-top:6px;margin-right:6px}
+  .dir.up{color:#f08a7e;border:1px solid rgba(224,103,90,.6)}
+  .dir.dn{color:#8fb0de;border:1px solid rgba(95,134,184,.7)}
+  .dir.mx,.dir.nt{color:var(--muted);border:1px solid var(--line-strong)}
+  .tag{display:inline-block;font-size:11px;color:var(--ink);background:rgba(255,255,255,.05);border-radius:4px;padding:1px 7px;margin-top:6px;margin-right:5px}
+  .item.rS{border-left:3px solid #e0675a}
+  .item.rA{border-left:3px solid var(--gold)}
+  .mg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:0 6px;margin-left:7px;vertical-align:1px;line-height:17px}
+  .mg.T{background:#7fb069;color:#090909}
+  .mg.S{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .mg.N{background:transparent;color:var(--muted);border:1px solid var(--line-strong)}
+  .kwbox{background:#0d0b07;border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;font-size:13.5px;line-height:1.75;color:var(--ink)}
+  .kwbox .kwrow{display:flex;gap:8px;align-items:flex-start}
+  .kwbox .kwrow+.kwrow{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+  .kwbox .rk{flex:none;margin-top:3px}
+  .ruletbl{width:100%;border-collapse:collapse;margin-top:10px}
+  .ruletbl td{border-top:1px solid var(--line);padding:5px 6px;vertical-align:top}
+  .ruletbl td:first-child{white-space:nowrap;width:1%}
 </style>
 </head>
 <body>
@@ -159,6 +198,7 @@
       <span>最終更新 <b id="lastUpd">—</b></span>
       <span>次の確認まで <b id="countdown">—</b></span>
       <span>取得元 <b id="sourceLbl">—</b></span>
+      <span>貸借データ <b id="marginLbl">—</b></span>
     </div>
   </header>
 
@@ -173,19 +213,32 @@
           <option value="0">手動のみ</option>
         </select>
       </div>
-      <div class="field">
-        <label>拾うキーワード（カンマ区切り）</label>
-        <input type="text" id="keywords" value="売出,売り出し,立会外分売,立会外買付">
-      </div>
     </div>
     <div class="row">
       <button class="btn primary" id="refreshBtn">今すぐ確認</button>
       <div class="toggles">
-        <span class="tg on" id="tgHitOnly"><i></i>該当のみ表示</span>
         <span class="tg" id="tgNotify"><i></i>ブラウザ通知</span>
         <span class="tg" id="tgSound"><i></i>新着音</span>
-        <span class="tg" id="tgHideEnded"><i></i>終了を隠す</span>
       </div>
+    </div>
+  </div>
+
+  <!-- ▼ タブ -->
+  <div class="tabs">
+    <button class="tab on" data-tab="jukyu" type="button">需給<small>分売・売出し・自社株買い</small></button>
+    <button class="tab" data-tab="zairyo" type="button">材料<small>S・Aの材料を自動で拾う</small></button>
+  </div>
+
+  <!-- ▼ 需給タブ専用の設定 -->
+  <div class="pane on" id="paneJukyu">
+  <div class="sub">
+    <div class="field">
+      <label>拾うキーワード（カンマ区切り）</label>
+      <input type="text" id="keywords" value="売出,売り出し,立会外分売,立会外買付">
+    </div>
+    <div class="toggles">
+      <span class="tg on" id="tgHitOnly"><i></i>該当のみ表示</span>
+      <span class="tg" id="tgHideEnded"><i></i>終了を隠す</span>
     </div>
   </div>
 
@@ -215,6 +268,41 @@
       </div>
     </div>
   </div>
+  </div><!-- /paneJukyu -->
+
+  <!-- ▼ 材料タブ専用の設定 -->
+  <div class="pane" id="paneZairyo">
+  <div class="sub">
+    <div class="field">
+      <label>拾っているキーワード（S・Aランク）</label>
+      <div class="kwbox" id="kwBox"></div>
+    </div>
+    <div class="row">
+      <span class="lbl">ランク</span>
+      <div class="toggles" id="rankChips">
+        <span class="tg rkS" data-rank="S"><i></i>S 特大</span>
+        <span class="tg" data-rank="A"><i></i>A 大</span>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">方向</span>
+      <div class="toggles" id="dirChips">
+        <span class="tg" data-dir="up"><i></i>↑ 好材料</span>
+        <span class="tg" data-dir="dn"><i></i>↓ 悪材料</span>
+        <span class="tg" data-dir="mx"><i></i>↕ 中身次第</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="max-width:220px">
+        <label>並び順</label>
+        <select id="zSort">
+          <option value="time">新しい順</option>
+          <option value="rank">ランクの高い順</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  </div><!-- /paneZairyo -->
 
   <div class="meta">
     <span class="count"><b id="cnt">0</b> 件（<span id="brk">監視中 0／終了 0</span>）</span>
@@ -235,6 +323,7 @@
 
   <div class="note">
     <b>このページを開いている間だけ</b>動きます。タブを閉じると監視は止まります。「閉じていても通知が飛んでくる」常駐は、サーバー側（GitHub Actions / VPS）の担当です。<br>
+    <b>材料タブ</b>は、全開示のタイトルを判定し、株価が大きく動きやすいS・Aランクだけを直近3日ぶん残します。通知は「いま選んでいるランク・方向」の新着だけ飛びます（Sだけ選べばSだけ通知）。<br>
     データ元は TDnet 適時開示（yanoshin WEB-API・東証と数分間隔で同期）。ブラウザから直接取得できない場合は、自動で中継サーバー経由に切り替えます。どうしても取れないときはサンプル表示になります。
   </div>
 
@@ -265,7 +354,8 @@
   var listEl=$("list");
 
   // ---- data endpoints (tried in order) ----
-  var TARGET="https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=100";
+  // 材料タブは全開示を見るので、15時台の集中でも取りこぼさないよう300件取得
+  var TARGET="https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json?limit=300";
   var SOURCES=[
     {name:"サーバー", url:"/api/tdnet"},
     {name:"直接", url:TARGET},
@@ -282,6 +372,152 @@
     {id:"s2b",pubdate:"2026-08-22 15:30:00",code:"XXXXX",name:"サンプル製鋼",title:"自己株式立会外買付取引（ToSTNeT-3）による自己株式の買付けについて",url:"https://webapi.yanoshin.jp/tdnet/"},
     {id:"s3",pubdate:"2026-08-22 16:30:00",code:"XXXXX",name:"サンプル製作所",title:"2026年8月期 月次売上状況に関するお知らせ",url:"https://webapi.yanoshin.jp/tdnet/"}
   ];
+
+  // ================================================================
+  //  材料レーダー：判定ルール
+  //  ・上から順に調べ、同じグループ(g)は最初に当たった1つだけ採用
+  //  ・r=ランク(S/A/B/C)  d=方向(up好材料 / dn悪材料 / mx中身次第 / nt影響小)
+  //  ・re=当たる言葉  ex=これを含むなら除外
+  //  ルールを足したい時は、この表に1行足すだけでOK
+  // ================================================================
+  var RULES=[
+    // ── S：特大 ──
+    {g:"hatan",   l:"民事再生・破綻",     r:"S",d:"dn",re:/民事再生|破産手続|会社更生|事業再生ＡＤＲ|事業再生ADR/},
+    {g:"tob",     l:"自社株TOB",          r:"A",d:"up",re:/自己株式の公開買付/},
+    {g:"tob",     l:"TOB",                r:"S",d:"up",re:/公開買付|ＴＯＢ|TOB/},
+    {g:"saihen",  l:"株式交換・株式移転", r:"S",d:"mx",re:/株式交換|株式移転/},
+    {g:"gappei",  l:"合併",               r:"S",d:"mx",re:/合併/},
+    {g:"shusei",  l:"上方修正",           r:"S",d:"up",re:/上方修正/},
+    {g:"shusei",  l:"下方修正",           r:"S",d:"dn",re:/下方修正/},
+    {g:"shusei",  l:"業績予想の修正",     r:"S",d:"mx",re:/業績予想.{0,8}修正|業績.{0,4}修正/},
+    {g:"shusei",  l:"予想と実績の差異",   r:"A",d:"mx",re:/差異/},
+    {g:"haishi",  l:"上場廃止関連",       r:"S",d:"mx",re:/上場廃止|監理銘柄|整理銘柄|特別注意銘柄/},
+    {g:"hoshu",   l:"株式報酬・SO",       r:"C",d:"nt",re:/譲渡制限付株式|株式報酬|ストック・?オプション|従業員持株/},
+    {g:"zoushi",  l:"新株予約権の行使状況",r:"C",d:"nt",re:/行使状況/},
+    {g:"zoushi",  l:"MSワラント",         r:"S",d:"dn",re:/行使価額修正条項/},
+    {g:"zoushi",  l:"新株・増資",         r:"S",d:"dn",re:/第三者割当|募集株式|新株式|新株発行|公募増資|新株予約権/,
+                                                      ex:/譲渡制限付株式|株式報酬|ストック・?オプション|従業員持株/},
+    {g:"teikei",  l:"提携解消",           r:"A",d:"dn",re:/提携.{0,6}解消/},
+    {g:"teikei",  l:"資本提携",           r:"S",d:"up",re:/資本業務提携|資本提携/},
+    {g:"teikei",  l:"業務提携",           r:"A",d:"up",re:/提携/},
+    // ── A：大 ──
+    {g:"jisha",   l:"自社株買いの途中経過",r:"C",d:"nt",re:/取得状況|取得結果/},
+    {g:"jisha",   l:"自社株買い",         r:"A",d:"up",re:/自己株式.{0,8}取得|自己株式取得|自社株買|立会外買付/},
+    {g:"shokyaku",l:"自己株式の消却",     r:"B",d:"up",re:/自己株式.{0,6}消却/},
+    {g:"shobun",  l:"処分（自己株式など）",r:"B",d:"dn",re:/処分/,ex:/譲渡制限付株式|株式報酬|ストック・?オプション|従業員持株/},
+    {g:"yutai",   l:"優待の新設・拡充",   r:"A",d:"up",re:/優待.{0,12}(新設|導入|拡充|拡大)/},
+    {g:"yutai",   l:"優待の廃止",         r:"A",d:"dn",re:/優待.{0,12}(廃止|休止|中止)/},
+    {g:"yutai",   l:"優待の変更",         r:"B",d:"mx",re:/優待/},
+    {g:"haito",   l:"増配・記念配",       r:"A",d:"up",re:/増配|記念配当|特別配当/},
+    {g:"haito",   l:"減配・無配",         r:"A",d:"dn",re:/減配|無配/},
+    {g:"haito",   l:"配当予想の修正",     r:"A",d:"mx",re:/配当予想.{0,6}修正/},
+    {g:"haito",   l:"配当",               r:"C",d:"nt",re:/配当/},
+    {g:"bunkatsu",l:"株式分割",           r:"A",d:"up",re:/株式分割|株式の分割/},
+    {g:"bunkatsu",l:"株式併合",           r:"B",d:"mx",re:/株式併合|株式の併合/},
+    {g:"kessan",  l:"決算",               r:"A",d:"mx",re:/決算短信/},
+    {g:"yoso",    l:"業績予想の公表",     r:"A",d:"mx",re:/業績予想/,ex:/修正|差異/},
+    {g:"keikaku", l:"中期経営計画",       r:"A",d:"mx",re:/経営計画/},
+    {g:"yuho",    l:"報告書の提出遅延",   r:"A",d:"dn",re:/(有価証券報告書|四半期報告書|半期報告書).{0,12}(延長|遅延)/},
+    // ── B：中 ──
+    {g:"kabunushi",l:"主要株主の異動",    r:"B",d:"mx",re:/主要株主|筆頭株主|大株主/},
+    {g:"ido",     l:"子会社の異動",       r:"B",d:"mx",re:/子会社.{0,4}異動/},
+    {g:"soshou",  l:"訴訟",               r:"B",d:"mx",re:/訴訟|提訴|判決/},
+    {g:"seisan",  l:"清算・解散",         r:"B",d:"mx",re:/清算|解散/},
+    {g:"toku",    l:"特別利益",           r:"B",d:"up",re:/特別利益|売却益/},
+    {g:"toku2",   l:"特別損失・減損",     r:"B",d:"dn",re:/特別損失|減損/},
+    {g:"yuka",    l:"有価証券",           r:"B",d:"mx",re:/有価証券/,ex:/報告書/},
+    {g:"yusen",   l:"優先株",             r:"B",d:"mx",re:/優先株/},
+    {g:"shin",    l:"新製品",             r:"B",d:"up",re:/新製品|新商品|新サービス|発売/},
+    {g:"houdou",  l:"報道",               r:"B",d:"mx",re:/報道/},
+    {g:"daihyo",  l:"社長の異動・辞任",   r:"B",d:"mx",re:/代表取締役.{0,8}(異動|辞任|交代)|社長.{0,4}(辞任|交代)/},
+    // ── C：小 ──
+    {g:"jinji",   l:"人事・組織・辞任",   r:"C",d:"nt",re:/辞任|人事|役員.{0,4}異動|組織/},
+    {g:"fuho",    l:"訃報",               r:"C",d:"nt",re:/訃報|逝去|死去/},
+    {g:"soukai",  l:"株主総会",           r:"C",d:"nt",re:/株主総会/},
+    {g:"houkoku", l:"報告書",             r:"C",d:"nt",re:/報告書/},
+    // ── 訂正（タイトルに「訂正」があれば、この2つだけで判定）──
+    {g:"teisei",  l:"決算数値の訂正",     r:"B",d:"mx",re:/決算短信|数値データ/},
+    {g:"teisei",  l:"訂正",               r:"C",d:"nt",re:/訂正/}
+  ];
+  var RANK_ORDER={S:0,A:1,B:2,C:3};
+  var DIR_LBL={up:"↑ 好材料",dn:"↓ 悪材料",mx:"↕ 中身次第",nt:"― 影響小"};
+
+  function classify(title){
+    title=title||"";
+    var isTeisei=/訂正/.test(title);
+    var seen={}, tags=[];
+    for(var i=0;i<RULES.length;i++){
+      var r=RULES[i];
+      if(isTeisei !== (r.g==="teisei")) continue;
+      if(seen[r.g]) continue;
+      if(r.re.test(title) && !(r.ex && r.ex.test(title))){ seen[r.g]=true; tags.push(r); }
+    }
+    if(!tags.length) return null;
+    tags.sort(function(a,b){ return RANK_ORDER[a.r]-RANK_ORDER[b.r]; });
+    var up=false,dn=false,mx=false;
+    tags.forEach(function(t){ if(t.d==="up")up=true; else if(t.d==="dn")dn=true; else if(t.d==="mx")mx=true; });
+    var dir = (up&&dn)?"mx" : up?"up" : dn?"dn" : mx?"mx" : "nt";
+    return {rank:tags[0].r, dir:dir, tags:tags};
+  }
+
+  // ---- 材料タブの状態 ----
+  var ZKEY="radar_zairyo_v1", ZOPT_KEY="radar_zopt_v1", TAB_KEY="radar_tab_v1";
+  var Z_KEEP_DAYS=3;     // 材料は何日ぶん残すか
+  var Z_MAX=800;         // 貯める上限件数
+  var zStore=[], knownZ={}, zFirst=true, zFresh={};
+  var zopt={ranks:{S:true,A:true,B:false,C:false}, dirs:{up:true,dn:true,mx:true}, sort:"time"};
+  var tab="jukyu";
+
+  function zPasses(c){
+    return !!(c && zopt.ranks[c.rank] && zopt.dirs[c.dir==="nt"?"mx":c.dir]);
+  }
+  function loadZ(){
+    try{ zStore=JSON.parse(localStorage.getItem(ZKEY))||[]; }catch(e){ zStore=[]; }
+    if(!Array.isArray(zStore)) zStore=[];
+    try{
+      var o=JSON.parse(localStorage.getItem(ZOPT_KEY));
+      if(o && o.ranks && o.dirs){ zopt=o; }
+      zopt.ranks.B=false; zopt.ranks.C=false;   // 表示はSとAだけ
+    }catch(e){}
+    try{ var t=localStorage.getItem(TAB_KEY); if(t==="zairyo"||t==="jukyu") tab=t; }catch(e){}
+  }
+  function saveZ(){ try{ localStorage.setItem(ZKEY, JSON.stringify(zStore)); }catch(e){} }
+  function saveZopt(){ try{ localStorage.setItem(ZOPT_KEY, JSON.stringify(zopt)); }catch(e){} }
+  function upsertZ(data){
+    var have={}; zStore.forEach(function(p){ have[p.id]=true; });
+    var ch=false;
+    data.forEach(function(d){
+      if(have[d.id] || dismissed["z:"+d.id]) return;
+      var zc=classify(d.title); if(!zc || (zc.rank!=="S" && zc.rank!=="A")) return;
+      zStore.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,savedAt:Date.now()});
+      have[d.id]=true; ch=true;
+    });
+    if(ch) saveZ();
+  }
+  function purgeZ(){
+    var cut=Date.now()-Z_KEEP_DAYS*86400000, n=zStore.length;
+    zStore=zStore.filter(function(p){
+      var d=parsePub(p.pubdate); var t=d?d.getTime():(p.savedAt||0);
+      return t>=cut;
+    });
+    if(zStore.length>Z_MAX){
+      zStore.sort(function(a,b){ return (b.pubdate||"").localeCompare(a.pubdate||""); });
+      zStore=zStore.slice(0,Z_MAX);
+    }
+    if(zStore.length!==n) saveZ();
+  }
+  function pushNotifyZ(items){
+    if(!opt.notify || !("Notification" in window) || Notification.permission!=="granted") return;
+    var t;
+    if(items.length===1){
+      var c=classify(items[0].title);
+      t="["+c.rank+" "+DIR_LBL[c.dir]+"] "+items[0].name+"｜"+items[0].title.slice(0,40);
+    }else{
+      var s=0; items.forEach(function(d){ if(classify(d.title).rank==="S") s++; });
+      t="材料の開示が "+items.length+" 件"+(s?"（うちSランク "+s+" 件）":"");
+    }
+    try{ new Notification("材料レーダー", {body:t}); }catch(e){}
+  }
 
   // ---- helpers ----
   function getKeywords(){
@@ -309,6 +545,30 @@
     var m=pub.replace("T"," ").match(/(\d{4})-(\d{2})-(\d{2})[ ]?(\d{2}):(\d{2})/);
     if(!m) return pub;
     return m[2]+"/"+m[3]+" "+m[4]+":"+m[5];
+  }
+  // ---- 貸借・信用の区分（margin.json：JPX「制度信用・貸借銘柄一覧」から作成） ----
+  var MARGIN={}, MARGIN_ASOF="";
+  function loadMargin(){
+    // まずJPXから自動取得（/api/margin）、だめなら同梱の margin.json を使う
+    function get(u){ return fetch(u,{cache:"no-cache"}).then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(j){ if(!j || !j.map || !j.asof) throw 0; return j; }); }
+    get("/api/margin")
+      .catch(function(){ return get("/margin.json"); })
+      .then(function(j){
+        MARGIN=(j&&j.map)||{}; MARGIN_ASOF=(j&&j.asof)||"";
+        var m=MARGIN_ASOF.match(/\d{4}-(\d{2})-(\d{2})/);
+        $("marginLbl").textContent = m ? (+m[1])+"/"+(+m[2])+"現在" : "読込済";
+        render(lastData, lastSource);
+      })
+      .catch(function(){ $("marginLbl").textContent="読込失敗"; });
+  }
+  function mBadge(code){
+    var c=shortCode(code).toUpperCase(); if(!c) return "";
+    var k=MARGIN[c];
+    if(!MARGIN_ASOF) return "";
+    if(k==="T") return '<span class="mg T" title="制度信用で空売りもできる">貸借</span>';
+    if(k==="S") return '<span class="mg S" title="制度信用の買いのみ（制度の空売り不可）">信用</span>';
+    return '<span class="mg N" title="制度信用の対象外">信用×</span>';
   }
   function shortCode(c){
     if(!c) return "";
@@ -435,11 +695,73 @@
   }
 
   // ---- render ----
+  // 取得するたびに呼ぶ：両タブの「貯める・通知」を行い、今のタブだけ描く
   function render(data, sourceName){
     data=data||[]; lastData=data; lastSource=sourceName||"—";
     $("sourceLbl").textContent = (sourceName||"—") + (sourceName==="サンプル"?"（取得失敗）":"");
     $("scanCnt").textContent = data.length;
+    var n1=renderJukyu(data, sourceName);
+    var n2=renderZairyo(data, sourceName);
+    if(n1||n2) beep();
+  }
 
+  // ---- 材料タブ ----
+  function renderZairyo(data, sourceName){
+    var newOnes=[];
+    zFresh={};
+    if(sourceName!=="サンプル"){
+      data.forEach(function(d){
+        var c=classify(d.title); if(!c) return;
+        if(!knownZ[d.id]){
+          if(!zFirst && zPasses(c)){ newOnes.push(d); zFresh[d.id]=true; }
+          knownZ[d.id]=true;
+        }
+      });
+      zFirst=false;
+      upsertZ(data);
+      if(newOnes.length) pushNotifyZ(newOnes);
+    }
+    purgeZ();
+    if(tab==="zairyo") drawZairyo();
+    return newOnes.length;
+  }
+  function drawZairyo(){
+    var src = (lastSource==="サンプル" && !zStore.length) ? lastData : zStore;
+    var items=[];
+    src.forEach(function(d){
+      var c=classify(d.title);
+      if(zPasses(c)) items.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,c:c,hit:true});
+    });
+    items.sort(function(a,b){
+      if(zopt.sort==="rank" && a.c.rank!==b.c.rank) return RANK_ORDER[a.c.rank]-RANK_ORDER[b.c.rank];
+      return (b.pubdate||"").localeCompare(a.pubdate||"");
+    });
+    var cnt={S:0,A:0,B:0,C:0};
+    items.forEach(function(d){ cnt[d.c.rank]++; });
+    $("cnt").textContent=items.length;
+    $("brk").textContent="S "+cnt.S+"／A "+cnt.A+"・直近"+Z_KEEP_DAYS+"日";
+    renderCodes(items);
+    if(!items.length){
+      listEl.innerHTML='<div class="state">選んだランク・方向に当てはまる開示はまだありません。<br>S・Aの材料が出たら自動で貯めて、3日間残します。</div>';
+      return;
+    }
+    var html="";
+    items.forEach(function(d){
+      var tags=d.c.tags.map(function(t){ return '<span class="tag">'+esc(t.l)+'</span>'; }).join("");
+      html+='<a class="item hit r'+d.c.rank+(zFresh[d.id]?" fresh":"")+'" href="'+esc(d.url)+'" target="_blank" rel="noopener">'
+        +'<span class="rm" data-zrm="'+esc(d.id)+'" title="この開示を消す">×</span>'
+        +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
+        +'<span class="body"><span class="co"><span class="rk '+d.c.rank+'">'+d.c.rank+'</span>'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span>'+mBadge(d.code)+'</span>'
+        +'<span class="title">'+esc(d.title)+'</span>'
+        +'<span class="dir '+d.c.dir+'">'+DIR_LBL[d.c.dir]+'</span>'+tags
+        +'</span></a>';
+    });
+    listEl.innerHTML=html;
+  }
+
+  // ---- 需給タブ ----
+  function renderJukyu(data, sourceName){
+    var newCount=0;
     var withHit = data.map(function(d){ d.hit=isHit(d.title); return d; });
     var hits = withHit.filter(function(d){return d.hit;});
 
@@ -448,7 +770,7 @@
     if(sourceName!=="サンプル"){
       var newOnes=[];
       hits.forEach(function(h){ if(!knownHitIds[h.id]){ if(!firstLoad){ newOnes.push(h); fresh[h.id]=true; } knownHitIds[h.id]=true; } });
-      if(newOnes.length){ pushNotify(newOnes); beep(); }
+      if(newOnes.length){ pushNotify(newOnes); newCount=newOnes.length; }
       firstLoad=false;
     }
 
@@ -476,18 +798,19 @@
       show = withHit;   // 全件ブラウズ（貯めない）
     }
 
+    if(tab!=="jukyu") return newCount;   // 材料タブを見ている間は描かない（貯める・通知は続ける）
+
     var liveN=0, endN=0;
     show.forEach(function(d){ if(d.ended) endN++; else if(d.hit) liveN++; });
     $("cnt").textContent = show.length;
     $("brk").textContent = opt.hitOnly ? ("監視中 "+liveN+"／終了 "+endN) : "全件ブラウズ";
-    $("lastUpd").textContent = new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
     renderCodes(show);
 
     if(!show.length){
       listEl.innerHTML='<div class="state">'+(opt.hitOnly
         ? 'まだ拾った開示はありません。<br>該当が出たら自動で貯めて、終了まで残します。'
         : '該当する開示はまだありません。<br>間隔ごとに自動で再確認します。')+'</div>';
-      return;
+      return newCount;
     }
     var html="";
     show.forEach(function(d){
@@ -504,12 +827,13 @@
       html+='<a class="item'+(d.hit?" hit":"")+(d.ended?" ended":"")+(fresh[d.id]?" fresh":"")+'" href="'+d.url+'" target="_blank" rel="noopener">'
         + rm
         +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
-        +'<span class="body"><span class="co">'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span></span>'
+        +'<span class="body"><span class="co">'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span>'+mBadge(d.code)+'</span>'
         +'<span class="title">'+esc(d.title)+'</span>'
         + badge + pill
         +'</span></a>';
     });
     listEl.innerHTML=html;
+    return newCount;
   }
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 
@@ -547,7 +871,10 @@
   // ---- refresh cycle ----
   function refresh(){
     if(firstLoad) listEl.innerHTML='<div class="state"><div class="spin"></div>読み込み中…</div>';
-    fetchData(function(err,data,src){ render(data, src); });
+    fetchData(function(err,data,src){
+      $("lastUpd").textContent = new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      render(data, src);
+    });
   }
   function scheduleNext(){
     clearInterval(timer); clearInterval(cdTimer);
@@ -589,7 +916,65 @@
       removePin(t.getAttribute("data-rm"));
       render(lastData, lastSource);
     }
+    if(t && t.getAttribute && t.getAttribute("data-zrm")!=null){
+      e.preventDefault(); e.stopPropagation();
+      var zid=t.getAttribute("data-zrm");
+      zStore=zStore.filter(function(p){ return p.id!==zid; });
+      dismissed["z:"+zid]=Date.now();
+      saveZ(); saveDismiss();
+      drawZairyo();
+    }
   });
+
+  // ---- タブ切り替え ----
+  function applyTab(){
+    var btns=document.querySelectorAll(".tab");
+    for(var i=0;i<btns.length;i++){ btns[i].classList.toggle("on", btns[i].getAttribute("data-tab")===tab); }
+    $("paneJukyu").classList.toggle("on", tab==="jukyu");
+    $("paneZairyo").classList.toggle("on", tab==="zairyo");
+  }
+  var tabBtns=document.querySelectorAll(".tab");
+  for(var ti=0;ti<tabBtns.length;ti++){
+    tabBtns[ti].onclick=function(){
+      tab=this.getAttribute("data-tab");
+      try{ localStorage.setItem(TAB_KEY, tab); }catch(e){}
+      applyTab();
+      if(tab==="jukyu") renderJukyu(lastData, lastSource); else drawZairyo();
+    };
+  }
+
+  // ---- 材料タブのボタン ----
+  function applyZopt(){
+    var rc=$("rankChips").children, dc=$("dirChips").children;
+    for(var i=0;i<rc.length;i++){ rc[i].classList.toggle("on", !!zopt.ranks[rc[i].getAttribute("data-rank")]); }
+    for(var j=0;j<dc.length;j++){ dc[j].classList.toggle("on", !!zopt.dirs[dc[j].getAttribute("data-dir")]); }
+    $("zSort").value=zopt.sort||"time";
+  }
+  $("rankChips").addEventListener("click",function(e){
+    var el=e.target.closest(".tg"); if(!el) return;
+    var k=el.getAttribute("data-rank"); zopt.ranks[k]=!zopt.ranks[k];
+    saveZopt(); applyZopt(); drawZairyo();
+  });
+  $("dirChips").addEventListener("click",function(e){
+    var el=e.target.closest(".tg"); if(!el) return;
+    var k=el.getAttribute("data-dir"); zopt.dirs[k]=!zopt.dirs[k];
+    saveZopt(); applyZopt(); drawZairyo();
+  });
+  $("zSort").onchange=function(){ zopt.sort=this.value; saveZopt(); drawZairyo(); };
+
+  // 「拾っているキーワード」欄を判定ルールから自動で作る（ルールを足すと自動で増える）
+  (function(){
+    var html="";
+    ["S","A"].forEach(function(rk){
+      var seen={}, parts=[];
+      RULES.forEach(function(r){
+        if(r.r!==rk || seen[r.l]) return; seen[r.l]=true;
+        parts.push(esc(r.l));
+      });
+      html+='<div class="kwrow"><span class="rk '+rk+'">'+rk+'</span><span>'+parts.join(", ")+'</span></div>';
+    });
+    $("kwBox").innerHTML=html;
+  })();
 
   $("tgHideEnded").onclick=function(){ opt.hideEnded=!opt.hideEnded; this.classList.toggle("on",opt.hideEnded); render(lastData, lastSource); };
 
@@ -654,7 +1039,11 @@
 
   // ---- go ----
   loadPins();
+  loadZ();
+  applyTab();
+  applyZopt();
   refresh();
+  loadMargin();
   scheduleNext();
 })();
 </script>
