@@ -146,6 +146,9 @@
   .item .pill.end{color:var(--muted)}
   .item .rm{position:absolute;top:6px;right:8px;color:var(--muted);font-size:16px;line-height:1;padding:2px 7px;border-radius:6px;text-decoration:none;opacity:.55}
   .item .rm:hover{opacity:1;color:#d99}
+  .yf{display:inline-block;font-size:11px;font-weight:700;color:var(--ink);background:rgba(216,181,106,.10);
+    border:1px solid var(--line-strong);border-radius:4px;padding:1px 9px;margin-top:6px;margin-left:6px;cursor:pointer}
+  .yf:hover{background:rgba(216,181,106,.22)}
 
   /* ── タブ ── */
   .tabs{display:flex;gap:6px;margin:4px 0 14px;border-bottom:1px solid var(--line)}
@@ -562,13 +565,19 @@
       })
       .catch(function(){ $("marginLbl").textContent="読込失敗"; });
   }
+  function yfBtn(code){
+    var c=shortCode(code).toUpperCase();
+    if(!/^[0-9A-Z]{4}$/.test(c)) return "";
+    return '<span class="yf" data-yf="'+esc(c)+'" title="Yahoo!ファイナンスでこの銘柄を開く">Yahoo ↗</span>';
+  }
   function mBadge(code){
     var c=shortCode(code).toUpperCase(); if(!c) return "";
     var k=MARGIN[c];
     if(!MARGIN_ASOF) return "";
     if(k==="T") return '<span class="mg T" title="制度信用で空売りもできる">貸借</span>';
     if(k==="S") return '<span class="mg S" title="制度信用の買いのみ（制度の空売り不可）">信用</span>';
-    return '<span class="mg N" title="制度信用の対象外">信用×</span>';
+    if(k==="N") return '<span class="mg N" title="JPX一覧で非制度信用銘柄（制度信用の買い・空売り不可）">信用×</span>';
+    return '<span class="mg N" title="JPXの一覧に載っていない（新規上場・PRO Marketなど）">一覧外</span>';
   }
   function shortCode(c){
     if(!c) return "";
@@ -753,7 +762,7 @@
         +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
         +'<span class="body"><span class="co"><span class="rk '+d.c.rank+'">'+d.c.rank+'</span>'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span>'+mBadge(d.code)+'</span>'
         +'<span class="title">'+esc(d.title)+'</span>'
-        +'<span class="dir '+d.c.dir+'">'+DIR_LBL[d.c.dir]+'</span>'+tags
+        +'<span class="dir '+d.c.dir+'">'+DIR_LBL[d.c.dir]+'</span>'+tags+yfBtn(d.code)
         +'</span></a>';
     });
     listEl.innerHTML=html;
@@ -829,7 +838,7 @@
         +'<span class="time">'+fmtTime(d.pubdate)+'</span>'
         +'<span class="body"><span class="co">'+esc(d.name)+'<span class="code">'+esc(shortCode(d.code))+'</span>'+mBadge(d.code)+'</span>'
         +'<span class="title">'+esc(d.title)+'</span>'
-        + badge + pill
+        + badge + pill + yfBtn(d.code)
         +'</span></a>';
     });
     listEl.innerHTML=html;
@@ -915,6 +924,13 @@
       e.preventDefault(); e.stopPropagation();
       removePin(t.getAttribute("data-rm"));
       render(lastData, lastSource);
+    }
+    // Yahoo!ファイナンスへ（開示PDFではなく銘柄ページを開く）
+    var yb = t && t.closest ? t.closest("[data-yf]") : null;
+    if(yb){
+      e.preventDefault(); e.stopPropagation();
+      window.open("https://finance.yahoo.co.jp/quote/"+encodeURIComponent(yb.getAttribute("data-yf"))+".T", "_blank", "noopener");
+      return;
     }
     if(t && t.getAttribute && t.getAttribute("data-zrm")!=null){
       e.preventDefault(); e.stopPropagation();
