@@ -326,7 +326,7 @@
 
   <div class="note">
     <b>このページを開いている間だけ</b>動きます。タブを閉じると監視は止まります。「閉じていても通知が飛んでくる」常駐は、サーバー側（GitHub Actions / VPS）の担当です。<br>
-    <b>材料タブ</b>は、全開示のタイトルを判定し、株価が大きく動きやすいS・Aランクだけを直近3日ぶん残します。通知は「いま選んでいるランク・方向」の新着だけ飛びます（Sだけ選べばSだけ通知）。<br>
+    <b>材料タブ</b>は、全開示のタイトルを判定し、株価が大きく動きやすいS・Aランクだけを直近3日ぶん残します。<b>株式のみ</b>が対象で、REIT・インフラファンド（投資法人）やETF・ETNは除外しています。通知は「いま選んでいるランク・方向」の新着だけ飛びます（Sだけ選べばSだけ通知）。<br>
     データ元は TDnet 適時開示（yanoshin WEB-API・東証と数分間隔で同期）。ブラウザから直接取得できない場合は、自動で中継サーバー経由に切り替えます。どうしても取れないときはサンプル表示になります。
   </div>
 
@@ -471,6 +471,17 @@
   var zopt={ranks:{S:true,A:true,B:false,C:false}, dirs:{up:true,dn:true,mx:true}, sort:"time"};
   var tab="jukyu";
 
+  // ---- 株式だけに絞る（REIT・インフラファンド・ETF・ETNなどを除外） ----
+  //  会社名やタイトルにこれらの言葉が入っていたら「株式以外」とみなす
+  var NON_STOCK_NAME=/投資法人|ＲＥＩＴ|REIT|リート|ＥＴＦ|ETF|ＥＴＮ|ETN|上場投信|上場投資信託|上場インデックス|投資信託|受益証券|ＦＵＮＤＳ|FUNDS|ＭＡＸＩＳ|MAXIS|iシェアーズ|ｉシェアーズ/i;
+  var NON_STOCK_TITLE=/投資口|ＥＴＦ|ETF|ＥＴＮ|ETN|上場投資信託|受益権|受益証券|インフラファンド/i;
+  function isStock(d){
+    if(!d) return false;
+    if(NON_STOCK_NAME.test(d.name||"")) return false;
+    if(NON_STOCK_TITLE.test(d.title||"")) return false;
+    return true;
+  }
+
   function zPasses(c){
     return !!(c && zopt.ranks[c.rank] && zopt.dirs[c.dir==="nt"?"mx":c.dir]);
   }
@@ -491,6 +502,7 @@
     var ch=false;
     data.forEach(function(d){
       if(have[d.id] || dismissed["z:"+d.id]) return;
+      if(!isStock(d)) return;   // 株式以外は貯めない
       var zc=classify(d.title); if(!zc || (zc.rank!=="S" && zc.rank!=="A")) return;
       zStore.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,savedAt:Date.now()});
       have[d.id]=true; ch=true;
@@ -720,6 +732,7 @@
     zFresh={};
     if(sourceName!=="サンプル"){
       data.forEach(function(d){
+        if(!isStock(d)) return;   // 株式以外は通知しない
         var c=classify(d.title); if(!c) return;
         if(!knownZ[d.id]){
           if(!zFirst && zPasses(c)){ newOnes.push(d); zFresh[d.id]=true; }
@@ -738,6 +751,7 @@
     var src = (lastSource==="サンプル" && !zStore.length) ? lastData : zStore;
     var items=[];
     src.forEach(function(d){
+      if(!isStock(d)) return;   // 株式以外は表示しない
       var c=classify(d.title);
       if(zPasses(c)) items.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,c:c,hit:true});
     });
