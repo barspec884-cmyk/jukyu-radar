@@ -127,6 +127,12 @@
   .codechip.copied{border-color:var(--live);background:rgba(127,176,105,.16)}
   .codechip.copied .num{color:var(--live)}
   .codes .empty{color:var(--muted);font-size:13px}
+  .codes .fold{cursor:pointer;user-select:none}
+  .codes .arw{display:inline-block;width:1em;color:var(--gold);margin-right:4px;transition:transform .15s}
+  .codes.closed .arw{transform:rotate(-90deg)}
+  .codes .foldhint{font-size:11px;opacity:.8}
+  .codes.closed .head{margin-bottom:0}
+  .codes.closed .chips2{display:none}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--gold);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -296,15 +302,20 @@
       </div>
     </div>
     <div class="row">
-      <div class="field" style="max-width:220px">
-        <label>並び順</label>
+      <div class="field">
+        <label>ソート1（並べ方）</label>
         <select id="zSort">
-          <option value="time">新しい順（時間順）</option>
-          <option value="rank">ランクの高い順</option>
+          <option value="time">時間順（新しい順）</option>
+          <option value="code">コード順（小さい順）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ソート2（先に出す材料）</label>
+        <select id="zSort2">
+          <option value="none">指定なし</option>
           <option value="up">↑ 好材料を先に</option>
           <option value="dn">↓ 悪材料を先に</option>
           <option value="mx">↕ 中身次第を先に</option>
-          <option value="code">コード順（小さい順）</option>
         </select>
       </div>
     </div>
@@ -318,7 +329,7 @@
 
   <div class="codes" id="codesPanel">
     <div class="head">
-      <span class="lbl">動いた銘柄コード <b id="codeCnt">0</b>件（タップでコピー）</span>
+      <span class="lbl fold" id="codesFold" role="button" tabindex="0"><span class="arw" id="codesArw">▾</span>動いた銘柄コード <b id="codeCnt">0</b>件<span class="foldhint" id="codesHint">（タップでたたむ）</span></span>
       <button class="copyall" id="copyAll">全部コピー</button>
     </div>
     <div class="chips2" id="codeChips"><span class="empty">—</span></div>
@@ -766,11 +777,11 @@
       mx:{mx:0,up:1,dn:2}
     };
     function dirKey(c){ return c.dir==="nt" ? "mx" : c.dir; }
+    // ソート2（方向でまとめる）→ ソート1（時間 or コード）の順に並べる
     items.sort(function(a,b){
-      var s=zopt.sort;
-      if(s==="rank" && a.c.rank!==b.c.rank) return RANK_ORDER[a.c.rank]-RANK_ORDER[b.c.rank];
-      if(DIR_FIRST[s]){
-        var o=DIR_FIRST[s], da=o[dirKey(a.c)], db=o[dirKey(b.c)];
+      var s=zopt.sort, s2=zopt.sort2;
+      if(DIR_FIRST[s2]){
+        var o=DIR_FIRST[s2], da=o[dirKey(a.c)], db=o[dirKey(b.c)];
         if(da!==db) return da-db;
       }
       if(s==="code"){
@@ -998,9 +1009,12 @@
     var rc=$("rankChips").children, dc=$("dirChips").children;
     for(var i=0;i<rc.length;i++){ rc[i].classList.toggle("on", !!zopt.ranks[rc[i].getAttribute("data-rank")]); }
     for(var j=0;j<dc.length;j++){ dc[j].classList.toggle("on", !!zopt.dirs[dc[j].getAttribute("data-dir")]); }
-    var ok={time:1,rank:1,up:1,dn:1,mx:1,code:1};
-    if(!ok[zopt.sort]) zopt.sort="time";
+    // 前の版の保存値を引き継ぐ
+    if(zopt.sort==="up"||zopt.sort==="dn"||zopt.sort==="mx"){ zopt.sort2=zopt.sort; zopt.sort="time"; }
+    if(zopt.sort!=="time" && zopt.sort!=="code") zopt.sort="time";
+    if(!{none:1,up:1,dn:1,mx:1}[zopt.sort2]) zopt.sort2="none";
     $("zSort").value=zopt.sort;
+    $("zSort2").value=zopt.sort2;
   }
   $("rankChips").addEventListener("click",function(e){
     var el=e.target.closest(".tg"); if(!el) return;
@@ -1013,6 +1027,7 @@
     saveZopt(); applyZopt(); drawZairyo();
   });
   $("zSort").onchange=function(){ zopt.sort=this.value; saveZopt(); drawZairyo(); };
+  $("zSort2").onchange=function(){ zopt.sort2=this.value; saveZopt(); drawZairyo(); };
 
   // 「拾っているキーワード」欄を判定ルールから自動で作る（ルールを足すと自動で増える）
   (function(){
@@ -1083,6 +1098,25 @@
       else toast("コピーできませんでした");
     });
   });
+  // 銘柄コード欄の開閉（状態は記憶する）
+  var CODES_FOLD_KEY="radar_codes_closed_v1";
+  function applyCodesFold(closed){
+    $("codesPanel").classList.toggle("closed", closed);
+    $("codesHint").textContent = closed ? "（タップで開く）" : "（タップでたたむ）";
+  }
+  (function(){
+    var closed=false;
+    try{ closed = localStorage.getItem(CODES_FOLD_KEY)==="1"; }catch(e){}
+    applyCodesFold(closed);
+  })();
+  function toggleCodes(){
+    var closed=!$("codesPanel").classList.contains("closed");
+    applyCodesFold(closed);
+    try{ localStorage.setItem(CODES_FOLD_KEY, closed?"1":"0"); }catch(e){}
+  }
+  $("codesFold").onclick=toggleCodes;
+  $("codesFold").onkeydown=function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggleCodes(); } };
+
   $("copyAll").onclick=function(){
     if(!lastCodes.length){ toast("コードがありません"); return; }
     var s=lastCodes.map(function(o){return o.code;}).join(",");
