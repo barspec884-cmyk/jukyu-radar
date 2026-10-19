@@ -299,8 +299,12 @@
       <div class="field" style="max-width:220px">
         <label>並び順</label>
         <select id="zSort">
-          <option value="time">新しい順</option>
+          <option value="time">新しい順（時間順）</option>
           <option value="rank">ランクの高い順</option>
+          <option value="up">↑ 好材料を先に</option>
+          <option value="dn">↓ 悪材料を先に</option>
+          <option value="mx">↕ 中身次第を先に</option>
+          <option value="code">コード順（小さい順）</option>
         </select>
       </div>
     </div>
@@ -755,8 +759,24 @@
       var c=classify(d.title);
       if(zPasses(c)) items.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,c:c,hit:true});
     });
+    // 並び順：選んだ方向を先頭に → 残りは 好材料・悪材料・中身次第 の順。同じグループ内は新しい順
+    var DIR_FIRST={
+      up:{up:0,dn:1,mx:2},
+      dn:{dn:0,up:1,mx:2},
+      mx:{mx:0,up:1,dn:2}
+    };
+    function dirKey(c){ return c.dir==="nt" ? "mx" : c.dir; }
     items.sort(function(a,b){
-      if(zopt.sort==="rank" && a.c.rank!==b.c.rank) return RANK_ORDER[a.c.rank]-RANK_ORDER[b.c.rank];
+      var s=zopt.sort;
+      if(s==="rank" && a.c.rank!==b.c.rank) return RANK_ORDER[a.c.rank]-RANK_ORDER[b.c.rank];
+      if(DIR_FIRST[s]){
+        var o=DIR_FIRST[s], da=o[dirKey(a.c)], db=o[dirKey(b.c)];
+        if(da!==db) return da-db;
+      }
+      if(s==="code"){
+        var ca=shortCode(a.code).toUpperCase(), cb=shortCode(b.code).toUpperCase();
+        if(ca!==cb) return ca<cb?-1:1;
+      }
       return (b.pubdate||"").localeCompare(a.pubdate||"");
     });
     var cnt={S:0,A:0,B:0,C:0};
@@ -978,7 +998,9 @@
     var rc=$("rankChips").children, dc=$("dirChips").children;
     for(var i=0;i<rc.length;i++){ rc[i].classList.toggle("on", !!zopt.ranks[rc[i].getAttribute("data-rank")]); }
     for(var j=0;j<dc.length;j++){ dc[j].classList.toggle("on", !!zopt.dirs[dc[j].getAttribute("data-dir")]); }
-    $("zSort").value=zopt.sort||"time";
+    var ok={time:1,rank:1,up:1,dn:1,mx:1,code:1};
+    if(!ok[zopt.sort]) zopt.sort="time";
+    $("zSort").value=zopt.sort;
   }
   $("rankChips").addEventListener("click",function(e){
     var el=e.target.closest(".tg"); if(!el) return;
