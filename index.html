@@ -325,7 +325,7 @@
   <!-- ▼ 絞り込み（両タブ共通） -->
   <div class="sub" id="filterBar">
     <div class="row">
-      <span class="lbl">区分</span>
+      <span class="lbl">区分<br><small style="font-size:10.5px">押した区分だけ表示</small></span>
       <div class="toggles" id="mgChips">
         <span class="tg" data-mg="T"><i></i>貸借</span>
         <span class="tg" data-mg="S"><i></i>信用</span>
@@ -613,8 +613,9 @@
       .catch(function(){ $("marginLbl").textContent="読込失敗"; });
   }
   // ---- 絞り込み（貸借・信用の区分 ＋ キーワード） ----
-  var FKEY="radar_filter_v1";
-  var fopt={mg:{T:true,S:true,N:true,X:true}};
+  var FKEY="radar_filter_v2";
+  // 区分は「押したものだけ表示」。何も押していなければ全部表示
+  var fopt={mg:{T:false,S:false,N:false,X:false}};
   try{ var fo=JSON.parse(localStorage.getItem(FKEY)); if(fo && fo.mg) fopt=fo; }catch(e){}
   function saveF(){ try{ localStorage.setItem(FKEY, JSON.stringify(fopt)); }catch(e){} }
   function mgKind(code){
@@ -625,11 +626,12 @@
     return ($("fq").value||"").toLowerCase().split(/[\s　,、]+/).filter(Boolean);
   }
   function isFiltering(){
-    var m=fopt.mg; return !!(fWords().length || !(m.T&&m.S&&m.N&&m.X));
+    return !!(fWords().length || mgAny());
   }
+  function mgAny(){ var m=fopt.mg; return !!(m.T||m.S||m.N||m.X); }
   function fPasses(d){
-    // 区分（貸借データを読み込めた時だけ判定）
-    if(MARGIN_ASOF && !fopt.mg[mgKind(d.code)]) return false;
+    // 区分（1つでも押していれば、押した区分だけ残す。貸借データを読み込めた時だけ判定）
+    if(MARGIN_ASOF && mgAny() && !fopt.mg[mgKind(d.code)]) return false;
     // キーワード（全部含むものだけ残す）
     var w=fWords(); if(!w.length) return true;
     var hay=((d.name||"")+" "+shortCode(d.code)+" "+(d.title||"")).toLowerCase();
@@ -1106,7 +1108,7 @@
   });
   $("fq").addEventListener("input", redrawNow);
   $("fClear").onclick=function(){
-    $("fq").value=""; fopt.mg={T:true,S:true,N:true,X:true};
+    $("fq").value=""; fopt.mg={T:false,S:false,N:false,X:false};
     saveF(); applyFopt(); redrawNow();
   };
   applyFopt();
