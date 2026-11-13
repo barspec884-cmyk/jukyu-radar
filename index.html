@@ -322,6 +322,26 @@
   </div>
   </div><!-- /paneZairyo -->
 
+  <!-- ▼ 絞り込み（両タブ共通） -->
+  <div class="sub" id="filterBar">
+    <div class="row">
+      <span class="lbl">区分</span>
+      <div class="toggles" id="mgChips">
+        <span class="tg" data-mg="T"><i></i>貸借</span>
+        <span class="tg" data-mg="S"><i></i>信用</span>
+        <span class="tg" data-mg="N"><i></i>信用×</span>
+        <span class="tg" data-mg="X"><i></i>一覧外</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>キーワードで絞り込み（会社名・コード・タイトル／スペース区切りで「全部含む」）</label>
+        <input type="text" id="fq" placeholder="例：トヨタ　7203　分売">
+      </div>
+      <button class="btn" id="fClear" type="button">クリア</button>
+    </div>
+  </div>
+
   <div class="meta">
     <span class="count"><b id="cnt">0</b> 件（<span id="brk">監視中 0／終了 0</span>）</span>
     <span id="scanLbl">全<span id="scanCnt">0</span>件から確認</span>
@@ -592,6 +612,30 @@
       })
       .catch(function(){ $("marginLbl").textContent="読込失敗"; });
   }
+  // ---- 絞り込み（貸借・信用の区分 ＋ キーワード） ----
+  var FKEY="radar_filter_v1";
+  var fopt={mg:{T:true,S:true,N:true,X:true}};
+  try{ var fo=JSON.parse(localStorage.getItem(FKEY)); if(fo && fo.mg) fopt=fo; }catch(e){}
+  function saveF(){ try{ localStorage.setItem(FKEY, JSON.stringify(fopt)); }catch(e){} }
+  function mgKind(code){
+    var k=MARGIN[shortCode(code).toUpperCase()];
+    return (k==="T"||k==="S"||k==="N") ? k : "X";   // X＝一覧外
+  }
+  function fWords(){
+    return ($("fq").value||"").toLowerCase().split(/[\s　,、]+/).filter(Boolean);
+  }
+  function isFiltering(){
+    var m=fopt.mg; return !!(fWords().length || !(m.T&&m.S&&m.N&&m.X));
+  }
+  function fPasses(d){
+    // 区分（貸借データを読み込めた時だけ判定）
+    if(MARGIN_ASOF && !fopt.mg[mgKind(d.code)]) return false;
+    // キーワード（全部含むものだけ残す）
+    var w=fWords(); if(!w.length) return true;
+    var hay=((d.name||"")+" "+shortCode(d.code)+" "+(d.title||"")).toLowerCase();
+    for(var i=0;i<w.length;i++){ if(hay.indexOf(w[i])<0) return false; }
+    return true;
+  }
   function yfBtn(code){
     var c=shortCode(code).toUpperCase();
     if(!/^[0-9A-Z]{4}$/.test(c)) return "";
@@ -768,7 +812,7 @@
     src.forEach(function(d){
       if(!isStock(d)) return;   // 株式以外は表示しない
       var c=classify(d.title);
-      if(zPasses(c)) items.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,c:c,hit:true});
+      if(zPasses(c) && fPasses(d)) items.push({id:d.id,pubdate:d.pubdate,code:d.code,name:d.name,title:d.title,url:d.url,c:c,hit:true});
     });
     // 並び順：選んだ方向を先頭に → 残りは 好材料・悪材料・中身次第 の順。同じグループ内は新しい順
     var DIR_FIRST={
@@ -793,10 +837,10 @@
     var cnt={S:0,A:0,B:0,C:0};
     items.forEach(function(d){ cnt[d.c.rank]++; });
     $("cnt").textContent=items.length;
-    $("brk").textContent="S "+cnt.S+"／A "+cnt.A+"・直近"+Z_KEEP_DAYS+"日";
+    $("brk").textContent="S "+cnt.S+"／A "+cnt.A+"・直近"+Z_KEEP_DAYS+"日"+(isFiltering()?"・絞り込み中":"");
     renderCodes(items);
     if(!items.length){
-      listEl.innerHTML='<div class="state">選んだランク・方向に当てはまる開示はまだありません。<br>S・Aの材料が出たら自動で貯めて、3日間残します。</div>';
+      listEl.innerHTML='<div class="state">選んだランク・方向'+(isFiltering()?'・絞り込み':'')+'に当てはまる開示はまだありません。<br>S・Aの材料が出たら自動で貯めて、3日間残します。</div>';
       return;
     }
     var html="";
@@ -854,12 +898,18 @@
 
     if(tab!=="jukyu") return newCount;   // 材料タブを見ている間は描かない（貯める・通知は続ける）
 
+    show = show.filter(fPasses);   // 区分・キーワードで絞り込み（表示だけ。貯める・通知には影響しない）
+
     var liveN=0, endN=0;
     show.forEach(function(d){ if(d.ended) endN++; else if(d.hit) liveN++; });
     $("cnt").textContent = show.length;
-    $("brk").textContent = opt.hitOnly ? ("監視中 "+liveN+"／終了 "+endN) : "全件ブラウズ";
+    $("brk").textContent = (opt.hitOnly ? ("監視中 "+liveN+"／終了 "+endN) : "全件ブラウズ") + (isFiltering()?"・絞り込み中":"");
     renderCodes(show);
 
+    if(!show.length && isFiltering()){
+      listEl.innerHTML='<div class="state">絞り込みに当てはまる開示はありません。<br>区分ボタンやキーワードを見直してください。</div>';
+      return newCount;
+    }
     if(!show.length){
       listEl.innerHTML='<div class="state">'+(opt.hitOnly
         ? 'まだ拾った開示はありません。<br>該当が出たら自動で貯めて、終了まで残します。'
@@ -1042,6 +1092,24 @@
     });
     $("kwBox").innerHTML=html;
   })();
+
+  // ---- 絞り込みのボタン・入力欄 ----
+  function redrawNow(){ if(tab==="jukyu") renderJukyu(lastData, lastSource); else drawZairyo(); }
+  function applyFopt(){
+    var mc=$("mgChips").children;
+    for(var i=0;i<mc.length;i++){ mc[i].classList.toggle("on", !!fopt.mg[mc[i].getAttribute("data-mg")]); }
+  }
+  $("mgChips").addEventListener("click",function(e){
+    var el=e.target.closest(".tg"); if(!el) return;
+    var k=el.getAttribute("data-mg"); fopt.mg[k]=!fopt.mg[k];
+    saveF(); applyFopt(); redrawNow();
+  });
+  $("fq").addEventListener("input", redrawNow);
+  $("fClear").onclick=function(){
+    $("fq").value=""; fopt.mg={T:true,S:true,N:true,X:true};
+    saveF(); applyFopt(); redrawNow();
+  };
+  applyFopt();
 
   $("tgHideEnded").onclick=function(){ opt.hideEnded=!opt.hideEnded; this.classList.toggle("on",opt.hideEnded); render(lastData, lastSource); };
 
